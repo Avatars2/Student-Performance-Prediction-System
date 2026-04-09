@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Performance Prediction System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Loading animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Enhanced form validation */
+        .form-group.error input {
+            border-color: #e53e3e;
+            background: #fff5f5;
+        }
+        
+        .error-message {
+            color: #e53e3e;
+            font-size: 0.8rem;
+            margin-top: 4px;
+            display: none;
+        }
+        
+        .form-group.error .error-message {
+            display: block;
+        }
+        
+        /* Progress indicators */
+        .progress-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .progress-circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #718096;
+            transition: all 0.3s ease;
+        }
+        
+        .progress-step.active .progress-circle {
+            background: #667eea;
+            color: white;
+        }
+        
+        .progress-step.completed .progress-circle {
+            background: #28a745;
+            color: white;
+        }
+        
+        .progress-label {
+            font-size: 0.7rem;
+            color: #718096;
+            text-align: center;
+        }
+        
+        /* Enhanced tooltips */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #2d3748;
+            color: white;
+            text-align: center;
+            border-radius: 8px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Input enhancement */
+        .input-group {
+            position: relative;
+        }
+        
+        .input-suffix {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #718096;
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+        
+        /* Character counter */
+        .char-counter {
+            text-align: right;
+            font-size: 0.75rem;
+            color: #718096;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎓 Student Performance Prediction System</h1>
+            <p class="subtitle">Predict student grades using Machine Learning</p>
+        </header>
+
+        <main class="main-content">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2>Enter Student Information</h2>
+                    <p>Fill in the details below to predict the student's performance</p>
+                </div>
+
+                <!-- Progress Indicator -->
+                <div class="progress-indicator">
+                    <div class="progress-step active" id="step1">
+                        <div class="progress-circle">1</div>
+                        <div class="progress-label">Basic Info</div>
+                    </div>
+                    <div class="progress-step" id="step2">
+                        <div class="progress-circle">2</div>
+                        <div class="progress-label">Academic</div>
+                    </div>
+                    <div class="progress-step" id="step3">
+                        <div class="progress-circle">3</div>
+                        <div class="progress-label">Review</div>
+                    </div>
+                </div>
+
+                <form action="/predict" method="POST" class="prediction-form" id="predictionForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="study_hours">
+                                <span class="label-icon">📚</span>
+                                Study Hours (per day)
+                                <span class="tooltip">
+                                    <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #718096;"></i>
+                                    <span class="tooltiptext">Average study hours per day including homework and revision</span>
+                                </span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       id="study_hours" 
+                                       name="study_hours" 
+                                       step="0.1" 
+                                       min="0" 
+                                       max="24" 
+                                       required 
+                                       placeholder="e.g., 8.5"
+                                       autocomplete="off">
+                                <span class="input-suffix">hrs/day</span>
+                            </div>
+                            <small class="help-text">Average study hours per day (0-24)</small>
+                            <div class="error-message">Please enter a value between 0 and 24</div>
+                            <div class="char-counter" id="study_hours_counter">0/5 characters</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="attendance">
+                                <span class="label-icon">📅</span>
+                                Attendance (%)
+                                <span class="tooltip">
+                                    <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #718096;"></i>
+                                    <span class="tooltiptext">Percentage of classes attended out of total classes</span>
+                                </span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       id="attendance" 
+                                       name="attendance" 
+                                       step="0.1" 
+                                       min="0" 
+                                       max="100" 
+                                       required 
+                                       placeholder="e.g., 95"
+                                       autocomplete="off">
+                                <span class="input-suffix">%</span>
+                            </div>
+                            <small class="help-text">Class attendance percentage (0-100)</small>
+                            <div class="error-message">Please enter a value between 0 and 100</div>
+                            <div class="char-counter" id="attendance_counter">0/5 characters</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="previous_marks">
+                                <span class="label-icon">📊</span>
+                                Previous Marks (%)
+                                <span class="tooltip">
+                                    <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #718096;"></i>
+                                    <span class="tooltiptext">Previous exam or semester marks percentage</span>
+                                </span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       id="previous_marks" 
+                                       name="previous_marks" 
+                                       step="0.1" 
+                                       min="0" 
+                                       max="100" 
+                                       required 
+                                       placeholder="e.g., 78"
+                                       autocomplete="off">
+                                <span class="input-suffix">%</span>
+                            </div>
+                            <small class="help-text">Previous exam marks (0-100)</small>
+                            <div class="error-message">Please enter a value between 0 and 100</div>
+                            <div class="char-counter" id="previous_marks_counter">0/5 characters</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="assignments_completed">
+                                <span class="label-icon">📝</span>
+                                Assignments Completed
+                                <span class="tooltip">
+                                    <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #718096;"></i>
+                                    <span class="tooltiptext">Number of assignments completed out of 10 total</span>
+                                </span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       id="assignments_completed" 
+                                       name="assignments_completed" 
+                                       step="1" 
+                                       min="0" 
+                                       max="10" 
+                                       required 
+                                       placeholder="e.g., 8"
+                                       autocomplete="off">
+                                <span class="input-suffix">/10</span>
+                            </div>
+                            <small class="help-text">Number of assignments completed (0-10)</small>
+                            <div class="error-message">Please enter a value between 0 and 10</div>
+                            <div class="char-counter" id="assignments_completed_counter">0/2 characters</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="participation">
+                                <span class="label-icon">🤝</span>
+                                Participation Score
+                                <span class="tooltip">
+                                    <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #718096;"></i>
+                                    <span class="tooltiptext">Class participation score based on engagement and contributions</span>
+                                </span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       id="participation" 
+                                       name="participation" 
+                                       step="1" 
+                                       min="0" 
+                                       max="10" 
+                                       required 
+                                       placeholder="e.g., 7"
+                                       autocomplete="off">
+                                <span class="input-suffix">/10</span>
+                            </div>
+                            <small class="help-text">Class participation score (0-10)</small>
+                            <div class="error-message">Please enter a value between 0 and 10</div>
+                            <div class="char-counter" id="participation_counter">0/2 characters</div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                            <i class="fas fa-redo"></i> Reset Form
+                        </button>
+                        <button type="button" class="btn btn-info" onclick="saveProgress()">
+                            <i class="fas fa-save"></i> Save Progress
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-chart-line"></i> Predict Performance
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="info-section">
+                <div class="info-card">
+                    <h3>📈 How It Works</h3>
+                    <p>Our system uses a Random Forest Classifier trained on historical student data to predict academic performance based on various factors.</p>
+                </div>
+
+                <div class="info-card">
+                    <h3>🎯 Grade System</h3>
+                    <ul>
+                        <li><span class="grade-a">A</span> - Excellent (90-100%)</li>
+                        <li><span class="grade-b">B</span> - Good (80-89%)</li>
+                        <li><span class="grade-c">C</span> - Average (70-79%)</li>
+                        <li><span class="grade-d">D</span> - Below Average (60-69%)</li>
+                        <li><span class="grade-f">F</span> - Fail (Below 60%)</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>💡 Tips for Better Grades</h3>
+                    <ul>
+                        <li>Maintain consistent study habits</li>
+                        <li>Attend classes regularly</li>
+                        <li>Complete all assignments on time</li>
+                        <li>Participate actively in class</li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 Student Performance Prediction System | Powered by Machine Learning</p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // Enhanced form validation and interaction
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFormValidation();
+            initializeProgressIndicator();
+            loadSavedProgress();
+            initializeCharacterCounters();
+        });
+
+        function initializeFormValidation() {
+            const form = document.getElementById('predictionForm');
+            const inputs = form.querySelectorAll('input[type="number"]');
+            
+            // Real-time validation
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    validateField(this);
+                    updateProgressIndicator();
+                });
+                
+                input.addEventListener('blur', function() {
+                    validateField(this);
+                });
+            });
+            
+            // Form submission validation
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                let isValid = true;
+                inputs.forEach(input => {
+                    if (!validateField(input)) {
+                        isValid = false;
+                    }
+                });
+                
+                if (isValid) {
+                    showLoading();
+                    // Submit form after a short delay for better UX
+                    setTimeout(() => {
+                        form.submit();
+                    }, 500);
+                } else {
+                    // Focus on first invalid field
+                    const firstInvalid = form.querySelector('.form-group.error input');
+                    if (firstInvalid) {
+                        firstInvalid.focus();
+                        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            });
+        }
+
+        function validateField(input) {
+            const formGroup = input.closest('.form-group');
+            const value = parseFloat(input.value);
+            const min = parseFloat(input.min);
+            const max = parseFloat(input.max);
+            
+            // Remove previous error state
+            formGroup.classList.remove('error');
+            
+            if (input.value === '' || isNaN(value) || value < min || value > max) {
+                formGroup.classList.add('error');
+                return false;
+            }
+            
+            return true;
+        }
+
+        function initializeProgressIndicator() {
+            updateProgressIndicator();
+        }
+
+        function updateProgressIndicator() {
+            const form = document.getElementById('predictionForm');
+            const inputs = form.querySelectorAll('input[type="number"]');
+            const totalFields = inputs.length;
+            const filledFields = Array.from(inputs).filter(input => input.value !== '').length;
+            
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const step3 = document.getElementById('step3');
+            
+            // Reset all steps
+            [step1, step2, step3].forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            
+            // Update progress based on filled fields
+            if (filledFields === 0) {
+                step1.classList.add('active');
+            } else if (filledFields <= 2) {
+                step1.classList.add('completed');
+                step2.classList.add('active');
+            } else if (filledFields < totalFields) {
+                step1.classList.add('completed');
+                step2.classList.add('completed');
+                step3.classList.add('active');
+            } else {
+                [step1, step2, step3].forEach(step => {
+                    step.classList.add('completed');
+                });
+            }
+        }
+
+        function initializeCharacterCounters() {
+            const counters = {
+                'study_hours': 5,
+                'attendance': 5,
+                'previous_marks': 5,
+                'assignments_completed': 2,
+                'participation': 2
+            };
+            
+            Object.keys(counters).forEach(fieldId => {
+                const input = document.getElementById(fieldId);
+                const counter = document.getElementById(fieldId + '_counter');
+                const maxLength = counters[fieldId];
+                
+                if (input && counter) {
+                    input.addEventListener('input', function() {
+                        const length = this.value.length;
+                        counter.textContent = `${length}/${maxLength} characters`;
+                        
+                        if (length > maxLength) {
+                            counter.style.color = '#e53e3e';
+                        } else {
+                            counter.style.color = '#718096';
+                        }
+                    });
+                }
+            });
+        }
+
+        function showLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'none';
+        }
+
+        // Reset form function
+        function resetForm() {
+            const form = document.getElementById('predictionForm');
+            form.reset();
+            
+            // Clear all error states
+            document.querySelectorAll('.form-group').forEach(group => {
+                group.classList.remove('error');
+            });
+            
+            // Reset character counters
+            document.querySelectorAll('.char-counter').forEach(counter => {
+                counter.textContent = counter.textContent.replace(/\d+/, '0');
+                counter.style.color = '#718096';
+            });
+            
+            // Reset progress indicator
+            updateProgressIndicator();
+            
+            // Clear saved progress
+            localStorage.removeItem('studentFormProgress');
+            
+            // Show feedback
+            showNotification('Form has been reset', 'info');
+        }
+
+        // Save progress function
+        function saveProgress() {
+            const form = document.getElementById('predictionForm');
+            const formData = new FormData(form);
+            const progress = {};
+            
+            for (let [key, value] of formData.entries()) {
+                progress[key] = value;
+            }
+            
+            localStorage.setItem('studentFormProgress', JSON.stringify(progress));
+            showNotification('Progress saved successfully!', 'success');
+        }
+
+        // Load saved progress
+        function loadSavedProgress() {
+            const savedProgress = localStorage.getItem('studentFormProgress');
+            
+            if (savedProgress) {
+                try {
+                    const progress = JSON.parse(savedProgress);
+                    const form = document.getElementById('predictionForm');
+                    
+                    Object.keys(progress).forEach(key => {
+                        const input = form.querySelector(`[name="${key}"]`);
+                        if (input) {
+                            input.value = progress[key];
+                            // Trigger input event to update counters and progress
+                            input.dispatchEvent(new Event('input'));
+                        }
+                    });
+                    
+                    showNotification('Previous progress loaded', 'info');
+                } catch (e) {
+                    console.error('Error loading saved progress:', e);
+                }
+            }
+        }
+
+        // Show notification function
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 10000;
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s ease;
+            `;
+            
+            // Set background color based on type
+            const colors = {
+                success: '#28a745',
+                error: '#dc3545',
+                info: '#17a2b8',
+                warning: '#ffc107'
+            };
+            notification.style.backgroundColor = colors[type] || colors.info;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Add input formatting (existing functionality)
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                const min = parseFloat(this.min);
+                const max = parseFloat(this.max);
+                
+                if (!isNaN(value)) {
+                    if (value < min) {
+                        this.value = min;
+                    } else if (value > max) {
+                        this.value = max;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

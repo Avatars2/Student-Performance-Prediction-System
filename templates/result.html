@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Result - Student Performance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Enhanced result animations */
+        .result-animation {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out forwards;
+        }
+        
+        @keyframes slideInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .result-animation:nth-child(1) { animation-delay: 0.1s; }
+        .result-animation:nth-child(2) { animation-delay: 0.3s; }
+        .result-animation:nth-child(3) { animation-delay: 0.5s; }
+        .result-animation:nth-child(4) { animation-delay: 0.7s; }
+        
+        /* Enhanced grade circle */
+        .grade-circle {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .grade-circle::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shine 2s infinite;
+        }
+        
+        @keyframes shine {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Chart container */
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .chart-container h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        
+        /* Enhanced progress bar */
+        .confidence-bar {
+            position: relative;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+            transition: width 1.5s ease-out;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Enhanced summary items */
+        .summary-item {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .summary-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Enhanced recommendations */
+        .recommendation-item {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        
+        .recommendation-item:hover {
+            transform: translateX(5px);
+            border-left-color: #667eea;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Action buttons enhancement */
+        .action-buttons {
+            gap: 20px;
+        }
+        
+        .btn {
+            min-width: 180px;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .chart-wrapper {
+                height: 250px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎓 Student Performance Prediction System</h1>
+            <p class="subtitle">Prediction Results</p>
+        </header>
+
+        <main class="main-content">
+            {% if error %}
+                <div class="error-container">
+                    <div class="error-card">
+                        <div class="error-icon">⚠️</div>
+                        <h2>Prediction Error</h2>
+                        <p>{{ error }}</p>
+                        <a href="/" class="btn btn-primary">← Back to Form</a>
+                    </div>
+                </div>
+            {% else %}
+                <div class="result-container">
+                    <div class="result-header">
+                        <h2>🎯 Prediction Result</h2>
+                        <p>Based on the provided student information</p>
+                    </div>
+
+                    <div class="prediction-card" {% if prediction.color %}style="border-color: {{ prediction.color }};"{% endif %}>
+                        <div class="grade-display">
+                            <div class="grade-circle" {% if prediction.color %}style="background-color: {{ prediction.color }};"{% endif %}>
+                                <span class="grade-text">{{ prediction.grade if prediction.grade else 'N/A' }}</span>
+                            </div>
+                            <div class="grade-info">
+                                <h3>{{ prediction.description if prediction.description else 'Unknown' }}</h3>
+                                <p>Score Range: {{ prediction.range if prediction.range else 'N/A' }}</p>
+                                <div class="confidence-bar">
+                                    <span>Confidence: {{ prediction.confidence if prediction.confidence else 0 }}%</span>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" {% if prediction.color and prediction.confidence %}style="width: {{ prediction.confidence }}%; background-color: {{ prediction.color }};"{% endif %}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden data element for JavaScript -->
+                    <script id="input-data" type="application/json">
+                        {{ prediction.input_data | tojson if prediction.input_data else '{}' }}
+                    </script>
+                    <div id="prediction-meta" 
+                         data-grade="{{ prediction.grade if prediction.grade else 'N/A' }}"
+                         data-confidence="{{ prediction.confidence if prediction.confidence else 0 }}"
+                         data-color="{{ prediction.color if prediction.color else '#667eea' }}">
+                    </div>
+
+                    <!-- Data Visualization Chart -->
+                    <div class="chart-container result-animation">
+                        <h3>📈 Performance Analysis</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="input-summary result-animation">
+                        <h3>📊 Input Summary</h3>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <span class="summary-label">Study Hours:</span>
+                                <span class="summary-value">{{ prediction.input_data.study_hours if prediction.input_data and prediction.input_data.study_hours else '0' }} hrs/day</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Attendance:</span>
+                                <span class="summary-value">{{ prediction.input_data.attendance if prediction.input_data and prediction.input_data.attendance else '0' }}%</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Previous Marks:</span>
+                                <span class="summary-value">{{ prediction.input_data.previous_marks if prediction.input_data and prediction.input_data.previous_marks else '0' }}%</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Assignments:</span>
+                                <span class="summary-value">{{ prediction.input_data.assignments_completed if prediction.input_data and prediction.input_data.assignments_completed else '0' }}/10</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Participation:</span>
+                                <span class="summary-value">{{ prediction.input_data.participation if prediction.input_data and prediction.input_data.participation else '0' }}/10</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="recommendations result-animation">
+                        <h3>💡 Personalized Recommendations</h3>
+                        <div class="recommendation-list">
+                            {% if prediction.grade == 'A' %}
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">🌟</span>
+                                    <p>Excellent performance! Keep up the great work and maintain your study habits.</p>
+                                </div>
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">🎯</span>
+                                    <p>Consider helping peers and taking on leadership roles in group projects.</p>
+                                </div>
+                            {% elif prediction.grade == 'B' %}
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">📈</span>
+                                    <p>Good performance! Focus on consistency to reach the next level.</p>
+                                </div>
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">⏰</span>
+                                    <p>Try increasing study hours by 1-2 hours per day for better results.</p>
+                                </div>
+                            {% elif prediction.grade == 'C' %}
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">📚</span>
+                                    <p>Focus on improving attendance and completing all assignments on time.</p>
+                                </div>
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">🤝</span>
+                                    <p>Increase class participation and seek help from teachers when needed.</p>
+                                </div>
+                            {% elif prediction.grade == 'D' %}
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">⚠️</span>
+                                    <p>Significant improvement needed. Create a structured study schedule.</p>
+                                </div>
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">👥</span>
+                                    <p>Consider forming study groups and attending tutoring sessions.</p>
+                                </div>
+                            {% else %}
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">🚨</span>
+                                    <p>Immediate action required. Meet with academic advisors for support.</p>
+                                </div>
+                                <div class="recommendation-item">
+                                    <span class="rec-icon">📋</span>
+                                    <p>Focus on fundamentals and consider additional academic resources.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <a href="/" class="btn btn-secondary">← Make Another Prediction</a>
+                        <button onclick="window.print()" class="btn btn-primary">🖨️ Print Results</button>
+                    </div>
+                </div>
+            {% endif %}
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 Student Performance Prediction System | Powered by Machine Learning</p>
+        </footer>
+    </div>
+
+    <script>
+        // Enhanced animations and chart initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeAnimations();
+            initializeChart();
+            addInteractiveElements();
+        });
+
+        function initializeAnimations() {
+            // Animate progress bar on load
+            const progressFill = document.querySelector('.progress-fill');
+            if (progressFill) {
+                const width = progressFill.style.width;
+                progressFill.style.width = '0%';
+                setTimeout(() => {
+                    progressFill.style.width = width;
+                }, 500);
+            }
+
+            // Add hover effects to summary items
+            document.querySelectorAll('.summary-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const label = this.querySelector('.summary-label').textContent;
+                    const value = this.querySelector('.summary-value').textContent;
+                    showNotification(`${label}: ${value}`, 'info');
+                });
+            });
+        }
+
+        function initializeChart() {
+            const ctx = document.getElementById('performanceChart');
+            if (!ctx) return;
+
+            // Get prediction data from page with error handling
+            try {
+                // Safely get data from data elements
+                const inputDataElement = document.getElementById('input-data');
+                const inputData = inputDataElement ? JSON.parse(inputDataElement.textContent) : {
+                    study_hours: 0,
+                    attendance: 0,
+                    previous_marks: 0,
+                    assignments_completed: 0,
+                    participation: 0
+                };
+
+                const metaElement = document.getElementById('prediction-meta');
+                const grade = metaElement ? metaElement.getAttribute('data-grade') || 'N/A' : 'N/A';
+                const confidence = metaElement ? parseFloat(metaElement.getAttribute('data-confidence')) || 0 : 0;
+
+                // Create radar chart
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Study Hours', 'Attendance', 'Previous Marks', 'Assignments', 'Participation'],
+                        datasets: [{
+                            label: 'Student Performance',
+                            data: [
+                                (inputData.study_hours / 24) * 100,
+                                inputData.attendance,
+                                inputData.previous_marks,
+                                (inputData.assignments_completed / 10) * 100,
+                                (inputData.participation / 10) * 100
+                            ],
+                            backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                            borderColor: 'rgba(102, 126, 234, 1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgba(102, 126, 234, 1)'
+                        }, {
+                            label: 'Ideal Performance',
+                            data: [75, 95, 85, 100, 80],
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            borderColor: 'rgba(40, 167, 69, 0.5)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointBackgroundColor: 'rgba(40, 167, 69, 0.5)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgba(40, 167, 69, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    stepSize: 20
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + Math.round(context.parsed.r) + '%';
+                                    }
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 1500,
+                            easing: 'easeInOutQuart'
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error initializing chart:', error);
+                // Hide chart container if there's an error
+                const chartContainer = document.querySelector('.chart-container');
+                if (chartContainer) {
+                    chartContainer.style.display = 'none';
+                }
+            }
+        }
+
+        function addInteractiveElements() {
+            // Add click-to-copy functionality to summary items
+            document.querySelectorAll('.summary-item').forEach(item => {
+                item.style.cursor = 'pointer';
+                item.addEventListener('click', function() {
+                    const value = this.querySelector('.summary-value').textContent;
+                    navigator.clipboard.writeText(value).then(() => {
+                        showNotification('Value copied to clipboard!', 'success');
+                    });
+                });
+            });
+
+            // Add expandable recommendations
+            document.querySelectorAll('.recommendation-item').forEach(item => {
+                item.style.cursor = 'pointer';
+                item.addEventListener('click', function() {
+                    this.classList.toggle('expanded');
+                });
+            });
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 10000;
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s ease;
+            `;
+            
+            const colors = {
+                success: '#28a745',
+                error: '#dc3545',
+                info: '#17a2b8',
+                warning: '#ffc107'
+            };
+            notification.style.backgroundColor = colors[type] || colors.info;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Enhanced print functionality
+        window.addEventListener('beforeprint', function() {
+            document.body.classList.add('print-mode');
+        });
+
+        window.addEventListener('afterprint', function() {
+            document.body.classList.remove('print-mode');
+        });
+    </script>
+
+    <style>
+        .print-mode .action-buttons,
+        .print-mode .header,
+        .print-mode .footer {
+            display: none;
+        }
+        
+        .print-mode .container {
+            max-width: 100%;
+            padding: 20px;
+        }
+    </style>
+</body>
+</html>
